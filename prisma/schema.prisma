@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+}
+
+
+//////////////////////////////////////
+// ENUMS
+//////////////////////////////////////
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  DRAFT
+}
+
+enum GalleryType {
+  DESTINATION
+  PACKAGE
+  ITINERARY
+}
+
+//////////////////////////////////////
+// DESTINATION
+//////////////////////////////////////
+
+model Destination {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  type        String?
+  description String?
+
+  status      Status   @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  packages    Package[]
+}
+
+//////////////////////////////////////
+// PACKAGE
+//////////////////////////////////////
+
+model Package {
+  id                Int      @id @default(autoincrement())
+  destinationId     Int
+  title             String
+  price             Float
+  discountPrice     Float?
+  days              Int
+  nights            Int
+  accommodationType String?
+
+  status            Status   @default(ACTIVE)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  destination       Destination @relation(fields: [destinationId], references: [id])
+  itineraries       Itinerary[]
+}
+
+//////////////////////////////////////
+// ITINERARY
+//////////////////////////////////////
+
+model Itinerary {
+  id          Int      @id @default(autoincrement())
+  packageId   Int
+  dayNumber   Int
+  dayTitle    String?
+  description String?
+  activities  Json?    // flexible list
+
+  status      Status   @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  package     Package  @relation(fields: [packageId], references: [id])
+}
+
+//////////////////////////////////////
+// GALLERY (COMMON IMAGE TABLE)
+//////////////////////////////////////
+
+model Gallery {
+  id        Int         @id @default(autoincrement())
+  url       String
+  type      GalleryType
+  entityId  Int
+  position  Int?        // for ordering images
+
+  createdAt DateTime    @default(now())
+}
