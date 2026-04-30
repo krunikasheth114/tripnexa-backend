@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Destination, Prisma, Status } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
+import { BulkCreateDestinationDto } from './dto/bulk-create-destination.dto';
 import { CreateDestinationDto } from './dto/create-destination.dto';
 import { UpdateDestinationDto } from './dto/update-destination.dto';
 
@@ -18,6 +19,45 @@ export class DestinationsService {
 
     try {
       return await this.prisma.destination.create({ data });
+    } catch (error) {
+      this.handlePrismaError(error);
+    }
+  }
+
+  async bulkCreate(bulkCreateDto: BulkCreateDestinationDto) {
+    if (
+      !Array.isArray(bulkCreateDto.destinations) ||
+      bulkCreateDto.destinations.length === 0
+    ) {
+      throw new BadRequestException('destinations must be a non-empty array');
+    }
+
+    const data: Prisma.DestinationCreateManyInput[] =
+      bulkCreateDto.destinations.map((dto) => ({
+        name: this.validateRequiredString(dto.name, 'name'),
+        slug: this.validateRequiredString(dto.slug, 'slug'),
+        ...(dto.type !== undefined
+          ? { type: this.validateOptionalString(dto.type, 'type') }
+          : {}),
+        ...(dto.description !== undefined
+          ? {
+              description: this.validateOptionalString(
+                dto.description,
+                'description',
+              ),
+            }
+          : {}),
+        ...(dto.status !== undefined
+          ? { status: this.validateStatus(dto.status) }
+          : {}),
+      }));
+
+    try {
+      const result = await this.prisma.destination.createMany({
+        data,
+        skipDuplicates: true,
+      });
+      return { created: result.count };
     } catch (error) {
       this.handlePrismaError(error);
     }

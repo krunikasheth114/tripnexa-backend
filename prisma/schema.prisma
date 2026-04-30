@@ -52,6 +52,7 @@ model Destination {
   deletedAt   DateTime?
 
   packages    Package[]
+  gallery     Gallery[]   // ✅ added
 }
 
 //////////////////////////////////////
@@ -68,6 +69,7 @@ model Package {
   nights            Int
   accommodationType String?
 
+  tags              String[] @default([])
   status            Status   @default(ACTIVE)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -75,6 +77,7 @@ model Package {
 
   destination       Destination @relation(fields: [destinationId], references: [id])
   itineraries       Itinerary[]
+  gallery     Gallery[]   // ✅ added
 }
 
 //////////////////////////////////////
@@ -95,18 +98,30 @@ model Itinerary {
   deletedAt   DateTime?
 
   package     Package  @relation(fields: [packageId], references: [id])
+  gallery     Gallery[]   // ✅ added
 }
 
-//////////////////////////////////////
-// GALLERY (COMMON IMAGE TABLE)
-//////////////////////////////////////
-
 model Gallery {
-  id        Int         @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   url       String
-  type      GalleryType
-  entityId  Int
-  position  Int?        // for ordering images
+  position  Int?
 
-  createdAt DateTime    @default(now())
+  // relations (only one should be set)
+  destinationId Int?
+  packageId     Int?
+  itineraryId   Int?
+
+  status      Status   @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  // relations
+  destination Destination? @relation(fields: [destinationId], references: [id])
+  package     Package?     @relation(fields: [packageId], references: [id])
+  itinerary   Itinerary?   @relation(fields: [itineraryId], references: [id])
+
+  @@index([destinationId])
+  @@index([packageId])
+  @@index([itineraryId])
 }

@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { BulkCreateDestinationDto } from './dto/bulk-create-destination.dto';
 import { CreateDestinationDto } from './dto/create-destination.dto';
 import { UpdateDestinationDto } from './dto/update-destination.dto';
 import { DestinationsService } from './destinations.service';
@@ -19,6 +20,11 @@ export class DestinationsController {
   @Post()
   create(@Body() createDestinationDto: CreateDestinationDto) {
     return this.destinationsService.create(createDestinationDto);
+  }
+
+  @Post('bulk')
+  bulkCreate(@Body() bulkCreateDto: BulkCreateDestinationDto) {
+    return this.destinationsService.bulkCreate(bulkCreateDto);
   }
 
   @Get()

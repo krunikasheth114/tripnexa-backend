@@ -1,9 +1,19 @@
-import { Status } from '../../../generated/prisma';
+import { IsString, IsNotEmpty } from 'class-validator';
 
 export class CreateDestinationDto {
-  declare name: string;
-  declare slug: string;
-  declare type?: string;
-  declare description?: string;
-  declare status?: Status;
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @IsString()
+  @IsNotEmpty()
+  slug: string;
+
+  @IsString()
+  type?: string;
+
+  @IsString()
+  description?: string;
+
+  status?: string;
 }
