@@ -5,7 +5,7 @@ export class CreateGalleryDto {
 
     @IsOptional()
     @IsString()
-    url: string;
+    url!: string;
 
     @IsOptional()
     @IsString()

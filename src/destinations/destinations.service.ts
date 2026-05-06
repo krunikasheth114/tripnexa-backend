@@ -67,6 +67,9 @@ export class DestinationsService {
     return this.prisma.destination.findMany({
       where: { deletedAt: null },
       orderBy: { createdAt: 'desc' },
+      include: {
+        gallery: true,
+      },
     });
   }
 

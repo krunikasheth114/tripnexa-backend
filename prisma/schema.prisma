@@ -24,9 +24,10 @@ model User {
 //////////////////////////////////////
 
 enum Status {
+  DRAFT
   ACTIVE
   INACTIVE
-  DRAFT
+  DELETED
 }
 
 enum GalleryType {

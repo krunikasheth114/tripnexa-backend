@@ -3,11 +3,11 @@ import { IsString, IsNotEmpty } from 'class-validator';
 export class CreateDestinationDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @IsString()
   @IsNotEmpty()
-  slug: string;
+  slug!: string;
 
   @IsString()
   type?: string;
