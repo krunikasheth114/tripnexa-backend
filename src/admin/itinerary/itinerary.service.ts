@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Status } from '../../generated/prisma';
-import { PrismaService } from '../prisma/prisma.service';
+﻿import { Injectable, NotFoundException } from '@nestjs/common';
+import { Status } from '../../../generated/prisma';
+import { PrismaService } from '../../prisma/prisma.service';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
 

@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { S3Service } from '../utils/s3.service';
+﻿import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { S3Service } from '../../utils/s3.service';
 import type { Express } from 'express';
 import { CreateGalleryDto } from './dto/create-gallery.dto';
 

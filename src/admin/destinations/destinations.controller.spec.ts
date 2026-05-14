@@ -1,5 +1,5 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { Status } from '../../generated/prisma';
+﻿import { Test, TestingModule } from '@nestjs/testing';
+import { Status } from '../../../generated/prisma';
 import { DestinationsController } from './destinations.controller';
 import { DestinationsService } from './destinations.service';
 

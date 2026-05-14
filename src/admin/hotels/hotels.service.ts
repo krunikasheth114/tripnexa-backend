@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Status } from '../../generated/prisma';
-import { PrismaService } from '../prisma/prisma.service';
+﻿import { Injectable, NotFoundException } from '@nestjs/common';
+import { Status } from '../../../generated/prisma';
+import { PrismaService } from '../../prisma/prisma.service';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
 

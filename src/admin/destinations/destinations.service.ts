@@ -1,11 +1,11 @@
-import {
+﻿import {
   BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Destination, Prisma, Status } from '../../generated/prisma';
-import { PrismaService } from '../prisma/prisma.service';
+import { Destination, Prisma, Status } from '../../../generated/prisma';
+import { PrismaService } from '../../prisma/prisma.service';
 import { BulkCreateDestinationDto } from './dto/bulk-create-destination.dto';
 import { CreateDestinationDto } from './dto/create-destination.dto';
 import { UpdateDestinationDto } from './dto/update-destination.dto';

@@ -1,4 +1,4 @@
-import {
+﻿import {
   IsArray,
   IsDateString,
   IsEnum,
@@ -8,7 +8,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ActivityType, MealType, TransferType } from '../../../generated/prisma';
+import { ActivityType, MealType, TransferType } from '../../../../generated/prisma';
 
 export class MealDto {
   @IsEnum(MealType)
