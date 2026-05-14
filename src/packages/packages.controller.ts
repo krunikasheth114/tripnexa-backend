@@ -39,10 +39,11 @@ export class PackagesController {
     return this.service.delete(id);
   }
 
-  // ✅ List by destinationId
+  // ✅ List all, or filter by destinationId
   @Get()
-  findByDestination(@Query('destinationId', ParseIntPipe) destinationId: number) {
-    return this.service.findByDestination(destinationId);
+  findAll(@Query('destinationId') destinationId?: string) {
+    const id = destinationId ? parseInt(destinationId, 10) : undefined;
+    return this.service.findAll(id);
   }
 
   @Get(':id')

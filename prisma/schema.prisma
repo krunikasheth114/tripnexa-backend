@@ -8,32 +8,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  status    String   @default("active")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-}
-
-
 //////////////////////////////////////
 // ENUMS
 //////////////////////////////////////
 
 enum Status {
-  DRAFT
+ DRAFT
   ACTIVE
   INACTIVE
   DELETED
 }
 
-enum GalleryType {
-  DESTINATION
-  PACKAGE
-  ITINERARY
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+}
+
+enum TransferType {
+  AIRPORT_PICKUP
+  AIRPORT_DROP
+  RAILWAY_PICKUP
+  RAILWAY_DROP
+  HOTEL_TRANSFER
+  SIGHTSEEING_TRANSFER
+  PRIVATE_CAB
+  VOLVO_BUS
+}
+
+enum ActivityType {
+  ADVENTURE
+  SIGHTSEEING
+  TREKKING
+  WATERSPORT
+  RELAXATION
+  CAMPFIRE
+  SHOPPING
+  BOATING
+  SAFARI
 }
 
 //////////////////////////////////////
@@ -41,19 +53,31 @@ enum GalleryType {
 //////////////////////////////////////
 
 model Destination {
-  id          Int      @id @default(autoincrement())
-  name        String
-  slug        String   @unique
-  type        String?
-  description String?
+  id            Int       @id @default(autoincrement())
 
-  status      Status   @default(ACTIVE)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  name          String
 
-  packages    Package[]
-  gallery     Gallery[]   // ✅ added
+  slug          String?    @unique
+
+  type          String?
+
+  description   String?
+
+  seasonalTags  String[]  @default([])
+
+  status        Status    @default(ACTIVE)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  //////////////////////////////////////
+  // RELATIONS
+  //////////////////////////////////////
+
+  packages      Package[]
+
+  gallery       Gallery[]
 }
 
 //////////////////////////////////////
@@ -61,45 +85,243 @@ model Destination {
 //////////////////////////////////////
 
 model Package {
-  id                Int      @id @default(autoincrement())
-  destinationId     Int
-  title             String
-  price             Float
-  discountPrice     Float?
-  days              Int
-  nights            Int
-  accommodationType String?
+  id                 Int       @id @default(autoincrement())
 
-  tags              String[] @default([])
-  status            Status   @default(ACTIVE)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  deletedAt         DateTime?
+  destinationId      Int
 
-  destination       Destination @relation(fields: [destinationId], references: [id])
-  itineraries       Itinerary[]
-  gallery     Gallery[]   // ✅ added
+  title              String
+
+  slug               String?    @unique
+
+  description        String?
+
+  price              Float
+
+  discountPrice      Float?
+
+  days               Int
+
+  nights             Int
+
+  accommodationType  String?
+
+  tags               String[]  @default([])
+
+  extraInclusions    String[]  @default([])
+
+  extraExclusions    String[]  @default([])
+
+  status             Status    @default(ACTIVE)
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  //////////////////////////////////////
+  // RELATIONS
+  //////////////////////////////////////
+
+  destination        Destination @relation(fields: [destinationId], references: [id])
+
+  itineraries        Itinerary[]
+
+  gallery            Gallery[]
+
+  @@index([destinationId])
 }
 
 //////////////////////////////////////
-// ITINERARY
+// ITINERARY (DAY WISE)
 //////////////////////////////////////
 
 model Itinerary {
-  id          Int      @id @default(autoincrement())
-  packageId   Int
-  dayNumber   Int
-  dayTitle    String?
-  description String?
-  activities  Json?    // flexible list
+  id               Int       @id @default(autoincrement())
 
-  status      Status   @default(ACTIVE)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  deletedAt   DateTime?
+  packageId        Int
 
-  package     Package  @relation(fields: [packageId], references: [id])
-  gallery     Gallery[]   // ✅ added
+  dayNumber        Int
+
+  dayTitle         String?
+
+  description      String?
+
+  status           Status    @default(ACTIVE)
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  //////////////////////////////////////
+  // RELATIONS
+  //////////////////////////////////////
+
+  package          Package @relation(fields: [packageId], references: [id])
+
+  hotels           ItineraryHotel[]
+
+  meals            ItineraryMeal[]
+
+  transfers        ItineraryTransfer[]
+
+  activities       ItineraryActivity[]
+
+  gallery          Gallery[]
+
+  @@unique([packageId, dayNumber])
+
+  @@index([packageId])
+}
+
+//////////////////////////////////////
+// HOTEL MASTER
+//////////////////////////////////////
+
+model Hotel {
+  id               Int       @id @default(autoincrement())
+
+  name             String
+
+  city             String?
+
+  address          String?
+
+  starRating       Int?
+
+  description      String?
+
+  status           Status    @default(ACTIVE)
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  //////////////////////////////////////
+  // RELATIONS
+  //////////////////////////////////////
+
+  itineraryHotels  ItineraryHotel[]
+}
+
+//////////////////////////////////////
+// ITINERARY HOTEL
+//////////////////////////////////////
+
+model ItineraryHotel {
+  id              Int       @id @default(autoincrement())
+
+  itineraryId     Int
+
+  hotelId         Int
+
+  checkIn         Boolean   @default(false)
+
+  checkOut        Boolean   @default(false)
+
+  roomType        String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  //////////////////////////////////////
+  // RELATIONS
+  //////////////////////////////////////
+
+  itinerary       Itinerary @relation(fields: [itineraryId], references: [id])
+
+  hotel           Hotel @relation(fields: [hotelId], references: [id])
+
+  @@index([itineraryId])
+
+  @@index([hotelId])
+}
+
+//////////////////////////////////////
+// ITINERARY ACTIVITY
+//////////////////////////////////////
+
+model ItineraryActivity {
+  id              Int       @id @default(autoincrement())
+
+  itineraryId     Int
+
+  activityType    ActivityType
+
+  title           String?
+
+  description     String?
+
+  startTime       DateTime?
+
+  endTime         DateTime?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  //////////////////////////////////////
+  // RELATIONS
+  //////////////////////////////////////
+
+  itinerary       Itinerary @relation(fields: [itineraryId], references: [id])
+
+  @@index([itineraryId])
+}
+
+//////////////////////////////////////
+// ITINERARY TRANSFER
+//////////////////////////////////////
+
+model ItineraryTransfer {
+  id               Int       @id @default(autoincrement())
+
+  itineraryId      Int
+
+  transferType     TransferType
+
+  pickupLocation   String?
+
+  dropLocation     String?
+
+  pickupTime       DateTime?
+
+  dropTime         DateTime?
+
+  notes            String?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  //////////////////////////////////////
+  // RELATIONS
+  //////////////////////////////////////
+
+  itinerary        Itinerary @relation(fields: [itineraryId], references: [id])
+
+  @@index([itineraryId])
+}
+
+//////////////////////////////////////
+// ITINERARY MEALS
+//////////////////////////////////////
+
+model ItineraryMeal {
+  id            Int       @id @default(autoincrement())
+
+  itineraryId   Int
+
+  mealType      MealType
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  //////////////////////////////////////
+  // RELATIONS
+  //////////////////////////////////////
+
+  itinerary     Itinerary @relation(fields: [itineraryId], references: [id])
+
+  @@index([itineraryId])
+
+  @@unique([itineraryId, mealType])
 }
 
 model Gallery {

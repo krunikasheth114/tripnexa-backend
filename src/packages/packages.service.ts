@@ -49,31 +49,18 @@ export class PackagesService {
         });
     }
 
-    // ✅ List by destinationId
-    async findByDestination(destinationId: number) {
-        return this.prisma.destination.findFirst({
+    // ✅ List all packages (optionally filtered by destinationId)
+    async findAll(destinationId?: number) {
+        return this.prisma.package.findMany({
             where: {
-                id: destinationId,
                 deletedAt: null,
+                ...(destinationId ? { destinationId } : {}),
             },
-
             include: {
+                destination: true,
                 gallery: true,
-
-                packages: {
-                    where: {
-                        deletedAt: null,
-                    },
-
-                    include: {
-                        gallery: true,
-                    },
-
-                    orderBy: {
-                        createdAt: "desc",
-                    },
-                },
             },
+            orderBy: { createdAt: 'desc' },
         });
     }
 

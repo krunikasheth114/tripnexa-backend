@@ -63,14 +63,28 @@ export class DestinationsService {
     }
   }
 
-  findAll() {
-    return this.prisma.destination.findMany({
-      where: { deletedAt: null },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        gallery: true,
-      },
-    });
+  async findAll(page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    const where = { deletedAt: null };
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.destination.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: { gallery: true },
+        skip,
+        take: limit,
+      }),
+      this.prisma.destination.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async findOne(id: number) {
@@ -98,6 +112,18 @@ export class DestinationsService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  async bulkDelete(ids: number[]) {
+    if (!ids || ids.length === 0) {
+      throw new BadRequestException('ids must be a non-empty array');
+    }
+
+    const result = await this.prisma.destination.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    return { deleted: result.count };
   }
 
   private async findActiveDestinationOrThrow(id: number): Promise<Destination> {

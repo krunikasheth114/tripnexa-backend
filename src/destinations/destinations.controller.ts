@@ -7,8 +7,10 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { BulkCreateDestinationDto } from './dto/bulk-create-destination.dto';
+import { BulkDeleteDestinationDto } from './dto/bulk-delete-destination.dto';
 import { CreateDestinationDto } from './dto/create-destination.dto';
 import { UpdateDestinationDto } from './dto/update-destination.dto';
 import { DestinationsService } from './destinations.service';
@@ -28,8 +30,14 @@ export class DestinationsController {
   }
 
   @Get()
-  findAll() {
-    return this.destinationsService.findAll();
+  findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.destinationsService.findAll(
+      page ? parseInt(page, 10) : 1,
+      limit ? parseInt(limit, 10) : 10,
+    );
   }
 
   @Get(':id')
@@ -43,6 +51,11 @@ export class DestinationsController {
     @Body() updateDestinationDto: UpdateDestinationDto,
   ) {
     return this.destinationsService.update(id, updateDestinationDto);
+  }
+
+  @Delete('bulk')
+  bulkDelete(@Body() dto: BulkDeleteDestinationDto) {
+    return this.destinationsService.bulkDelete(dto.ids);
   }
 
   @Delete(':id')

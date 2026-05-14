@@ -1,19 +1,26 @@
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 
 export class CreateDestinationDto {
-  @IsString()
-  @IsNotEmpty()
-  name!: string;
+    @IsString()
+    @IsNotEmpty()
+    name!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  slug!: string;
+    @IsString()
+    @IsNotEmpty()
+    slug!: string;
 
-  @IsString()
-  type?: string;
+    @IsOptional()
+    @IsString()
+    type?: string;
 
-  @IsString()
-  description?: string;
+    @IsOptional()
+    @IsString()
+    description?: string;
 
-  status?: string;
+    @IsOptional()
+    @IsArray()
+    seasonalTags?: string[];
+
+    @IsOptional()
+    status?: string;
 }
