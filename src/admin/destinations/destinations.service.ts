@@ -64,8 +64,18 @@ export class DestinationsService {
   }
 
   async findAll(page = 1, limit = 10) {
-    const skip = (page - 1) * limit;
     const where = { deletedAt: null };
+
+    // limit <= 0 → return flat array (used for dropdowns, no pagination wrapper)
+    if (limit <= 0) {
+      return this.prisma.destination.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, slug: true, status: true },
+      });
+    }
+
+    const skip = (page - 1) * limit;
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.destination.findMany({
@@ -78,13 +88,7 @@ export class DestinationsService {
       this.prisma.destination.count({ where }),
     ]);
 
-    return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 
   async findOne(id: number) {

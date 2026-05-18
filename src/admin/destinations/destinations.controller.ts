@@ -34,10 +34,9 @@ export class DestinationsController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.destinationsService.findAll(
-      page ? parseInt(page, 10) : 1,
-      limit ? parseInt(limit, 10) : 10,
-    );
+    const parsedLimit = limit !== undefined ? Number(limit) : 10;
+    const parsedPage  = page  !== undefined ? Number(page)  : 1;
+    return this.destinationsService.findAll(parsedPage, parsedLimit);
   }
 
   @Get(':id')
