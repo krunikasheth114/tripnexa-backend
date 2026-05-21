@@ -6,7 +6,7 @@
 } from '@nestjs/common';
 import { Destination, Prisma, Status } from '../../../generated/prisma';
 import { PrismaService } from '../../prisma/prisma.service';
-import { BulkCreateDestinationDto } from './dto/bulk-create-destination.dto';
+import { BulkCreateDestinationDto, BulkImportDestinationRowDto } from './dto/bulk-create-destination.dto';
 import { CreateDestinationDto } from './dto/create-destination.dto';
 import { UpdateDestinationDto } from './dto/update-destination.dto';
 
@@ -32,25 +32,50 @@ export class DestinationsService {
       throw new BadRequestException('destinations must be a non-empty array');
     }
 
+    // ── Pre-resolve parentName → parentId ────────────────────────────
+    const parentNames = [
+      ...new Set(
+        bulkCreateDto.destinations
+          .map((d: BulkImportDestinationRowDto) => d.parentName)
+          .filter((n): n is string => !!n),
+      ),
+    ];
+
+    const parentNameToId = new Map<string, number>();
+    if (parentNames.length > 0) {
+      const parents = await this.prisma.destination.findMany({
+        where: { name: { in: parentNames }, parentId: null, deletedAt: null },
+        select: { id: true, name: true },
+      });
+      for (const p of parents) {
+        parentNameToId.set(p.name, p.id);
+      }
+    }
+
+    // ── Build createMany input ────────────────────────────────────────
     const data: Prisma.DestinationCreateManyInput[] =
-      bulkCreateDto.destinations.map((dto) => ({
-        name: this.validateRequiredString(dto.name, 'name'),
-        slug: this.validateRequiredString(dto.slug, 'slug'),
-        ...(dto.type !== undefined
-          ? { type: this.validateOptionalString(dto.type, 'type') }
-          : {}),
-        ...(dto.description !== undefined
-          ? {
-              description: this.validateOptionalString(
-                dto.description,
-                'description',
-              ),
-            }
-          : {}),
-        ...(dto.status !== undefined
-          ? { status: this.validateStatus(dto.status) }
-          : {}),
-      }));
+      bulkCreateDto.destinations.map((dto: BulkImportDestinationRowDto) => {
+        // Resolve parentId: explicit id takes priority, then name lookup
+        let parentId: number | undefined = dto.parentId;
+        if (!parentId && dto.parentName) {
+          const resolved = parentNameToId.get(dto.parentName);
+          if (resolved) parentId = resolved;
+        }
+
+        return {
+          name: this.validateRequiredString(dto.name, 'name'),
+          ...(dto.slug ? { slug: dto.slug } : {}),
+          ...(dto.type ? { type: dto.type } : {}),
+          ...(parentId ? { parentId } : {}),
+          ...(dto.description ? { description: dto.description } : {}),
+          ...(dto.seasonalTags?.length ? { seasonalTags: dto.seasonalTags } : {}),
+          ...(dto.formattedAddress ? { formattedAddress: dto.formattedAddress } : {}),
+          ...(dto.latitude != null ? { latitude: dto.latitude } : {}),
+          ...(dto.longitude != null ? { longitude: dto.longitude } : {}),
+          ...(dto.placeId ? { placeId: dto.placeId } : {}),
+          ...(dto.status ? { status: this.validateStatus(dto.status) } : {}),
+        };
+      });
 
     try {
       const result = await this.prisma.destination.createMany({
@@ -70,8 +95,8 @@ export class DestinationsService {
     if (limit <= 0) {
       return this.prisma.destination.findMany({
         where,
-        orderBy: { name: 'asc' },
-        select: { id: true, name: true, slug: true, status: true },
+        orderBy: [{ parentId: 'asc' }, { name: 'asc' }],
+        select: { id: true, name: true, slug: true, type: true, parentId: true, status: true },
       });
     }
 
@@ -81,7 +106,7 @@ export class DestinationsService {
       this.prisma.destination.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        include: { gallery: true },
+        include: { gallery: true, parent: { select: { id: true, name: true } } },
         skip,
         take: limit,
       }),
@@ -147,16 +172,16 @@ export class DestinationsService {
   ): Prisma.DestinationCreateInput {
     return {
       name: this.validateRequiredString(dto.name, 'name'),
-      slug: this.validateRequiredString(dto.slug, 'slug'),
-      ...(dto.type !== undefined
-        ? { type: this.validateOptionalString(dto.type, 'type') }
-        : {}),
-      ...(dto.description !== undefined
-        ? { description: this.validateOptionalString(dto.description, 'description') }
-        : {}),
-      ...(dto.status !== undefined
-        ? { status: this.validateStatus(dto.status) }
-        : {}),
+      ...(dto.slug ? { slug: dto.slug } : {}),
+      ...(dto.type !== undefined ? { type: dto.type } : {}),
+      ...(dto.parentId !== undefined ? { parent: { connect: { id: dto.parentId } } } : {}),
+      ...(dto.description !== undefined ? { description: dto.description } : {}),
+      ...(dto.formattedAddress !== undefined ? { formattedAddress: dto.formattedAddress } : {}),
+      ...(dto.latitude !== undefined ? { latitude: dto.latitude } : {}),
+      ...(dto.longitude !== undefined ? { longitude: dto.longitude } : {}),
+      ...(dto.placeId !== undefined ? { placeId: dto.placeId } : {}),
+      ...(dto.seasonalTags !== undefined ? { seasonalTags: dto.seasonalTags } : {}),
+      ...(dto.status !== undefined ? { status: this.validateStatus(dto.status) } : {}),
     };
   }
 
@@ -165,25 +190,19 @@ export class DestinationsService {
   ): Prisma.DestinationUpdateInput {
     const data: Prisma.DestinationUpdateInput = {};
 
-    if (dto.name !== undefined) {
-      data.name = this.validateRequiredString(dto.name, 'name');
+    if (dto.name !== undefined) data.name = this.validateRequiredString(dto.name, 'name');
+    if (dto.slug !== undefined) data.slug = dto.slug;
+    if (dto.type !== undefined) data.type = dto.type;
+    if (dto.parentId !== undefined) {
+      data.parent = dto.parentId ? { connect: { id: dto.parentId } } : { disconnect: true };
     }
-
-    if (dto.slug !== undefined) {
-      data.slug = this.validateRequiredString(dto.slug, 'slug');
-    }
-
-    if (dto.type !== undefined) {
-      data.type = this.validateOptionalString(dto.type, 'type');
-    }
-
-    if (dto.description !== undefined) {
-      data.description = this.validateOptionalString(dto.description, 'description');
-    }
-
-    if (dto.status !== undefined) {
-      data.status = this.validateStatus(dto.status);
-    }
+    if (dto.description !== undefined) data.description = dto.description;
+    if (dto.formattedAddress !== undefined) data.formattedAddress = dto.formattedAddress;
+    if (dto.latitude !== undefined) data.latitude = dto.latitude;
+    if (dto.longitude !== undefined) data.longitude = dto.longitude;
+    if (dto.placeId !== undefined) data.placeId = dto.placeId;
+    if (dto.seasonalTags !== undefined) data.seasonalTags = dto.seasonalTags;
+    if (dto.status !== undefined) data.status = this.validateStatus(dto.status);
 
     return data;
   }

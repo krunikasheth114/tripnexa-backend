@@ -9,19 +9,38 @@ import {
   Get,
   Query,
   ParseIntPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { PackagesService } from './packages.service';
 import { CreatePackageDto } from './dto/create-package.dto';
 import { UpdatePackageDto } from './dto/update-package.dto';
+import { BulkImportPackageDto } from './dto/bulk-import-package.dto';
 
 @Controller('packages')
 export class PackagesController {
   constructor(private readonly service: PackagesService) {}
 
+  // ✅ Bulk Import
+  @Post('bulk')
+  bulkImport(@Body() dto: BulkImportPackageDto) {
+    return this.service.bulkImport(dto);
+  }
+
   // ✅ Create
   @Post()
   create(@Body() dto: CreatePackageDto) {
     return this.service.create(dto);
+  }
+
+  // ✅ Set Featured
+  @Patch(':id/featured')
+  @HttpCode(HttpStatus.OK)
+  setFeatured(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('featured') featured: boolean,
+  ) {
+    return this.service.setFeatured(id, featured);
   }
 
   // ✅ Update

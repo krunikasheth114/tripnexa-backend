@@ -10,10 +10,17 @@ import {
 import { ItineraryService } from './itinerary.service';
 import { CreateItineraryDto } from './dto/create-itinerary.dto';
 import { UpdateItineraryDto } from './dto/update-itinerary.dto';
+import { BulkImportItineraryDto } from './dto/bulk-import-itinerary.dto';
 
 @Controller('itinerary')
 export class ItineraryController {
   constructor(private readonly itineraryService: ItineraryService) {}
+
+  // ✅ Bulk Import
+  @Post('bulk')
+  bulkImport(@Body() dto: BulkImportItineraryDto) {
+    return this.itineraryService.bulkImport(dto);
+  }
 
   // ✅ Create
   @Post()

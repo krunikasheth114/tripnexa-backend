@@ -24,6 +24,7 @@ export class GalleryService {
                 destinationId: dto.destinationId,
                 packageId: dto.packageId,
                 itineraryId: dto.itineraryId,
+                hotelId: dto.hotelId,
                 position: dto.position,
             },
         });

@@ -29,5 +29,10 @@ export class CreateGalleryDto {
     @IsOptional()
     @Type(() => Number)
     @IsNumber()
+    hotelId?: number;
+
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
     position?: number;
 }

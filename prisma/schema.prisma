@@ -48,36 +48,61 @@ enum ActivityType {
   SAFARI
 }
 
+
+enum BookingType {
+  PACKAGE
+  HOTEL
+}
+
 //////////////////////////////////////
 // DESTINATION
 //////////////////////////////////////
 
 model Destination {
-  id            Int       @id @default(autoincrement())
+  id               Int       @id @default(autoincrement())
 
-  name          String
+  name             String
 
-  slug          String?    @unique
+  slug             String?   @unique
 
-  type          String?
+  // Category of destination: WILDLIFE | HERITAGE | RELIGIOUS | BEACH | ADVENTURE | CULTURAL | CITY | REGION
+  type             String?
 
-  description   String?
+  // Hierarchy: null = state-level, filled = child destination (belongs to a state)
+  parentId         Int?
 
-  seasonalTags  String[]  @default([])
+  description      String?
 
-  status        Status    @default(ACTIVE)
+  seasonalTags     String[]  @default([])
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  deletedAt     DateTime?
+  // Google Maps / Places
+  formattedAddress String?
+  latitude         Float?
+  longitude        Float?
+  placeId          String?
+
+  status           Status    @default(ACTIVE)
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
 
   //////////////////////////////////////
   // RELATIONS
   //////////////////////////////////////
 
-  packages      Package[]
+  parent           Destination?  @relation("DestHierarchy", fields: [parentId], references: [id])
+  children         Destination[] @relation("DestHierarchy")
 
-  gallery       Gallery[]
+  packages         Package[]
+
+  gallery          Gallery[]
+
+  hotels           Hotel[]
+
+  itineraries      Itinerary[]
+
+  @@index([parentId])
 }
 
 //////////////////////////////////////
@@ -103,13 +128,16 @@ model Package {
 
   nights             Int
 
-  accommodationType  String?
-
   tags               String[]  @default([])
 
-  extraInclusions    String[]  @default([])
+  // JSON shape: { meals?: string[], accommodation?: string[], transport?: string[], activities?: true, ... }
+  inclusions         Json?
 
-  extraExclusions    String[]  @default([])
+  exclusions         Json?
+
+  featured           Boolean   @default(false)
+
+  primaryHotelId     Int?
 
   status             Status    @default(ACTIVE)
 
@@ -123,11 +151,16 @@ model Package {
 
   destination        Destination @relation(fields: [destinationId], references: [id])
 
+  primaryHotel       Hotel?      @relation("PackagePrimaryHotel", fields: [primaryHotelId], references: [id])
+
   itineraries        Itinerary[]
 
   gallery            Gallery[]
 
+  bookings           Booking[]
+
   @@index([destinationId])
+  @@index([primaryHotelId])
 }
 
 //////////////////////////////////////
@@ -138,6 +171,9 @@ model Itinerary {
   id               Int       @id @default(autoincrement())
 
   packageId        Int
+
+  // Which destination this day is in (for multi-destination packages)
+  destinationId    Int?
 
   dayNumber        Int
 
@@ -155,7 +191,9 @@ model Itinerary {
   // RELATIONS
   //////////////////////////////////////
 
-  package          Package @relation(fields: [packageId], references: [id])
+  package          Package      @relation(fields: [packageId], references: [id])
+
+  destination      Destination? @relation(fields: [destinationId], references: [id])
 
   hotels           ItineraryHotel[]
 
@@ -170,6 +208,7 @@ model Itinerary {
   @@unique([packageId, dayNumber])
 
   @@index([packageId])
+  @@index([destinationId])
 }
 
 //////////////////////////////////////
@@ -187,7 +226,11 @@ model Hotel {
 
   starRating       Int?
 
+  perNightPrice    Float?
+
   description      String?
+
+  destinationId    Int?
 
   status           Status    @default(ACTIVE)
 
@@ -199,7 +242,16 @@ model Hotel {
   // RELATIONS
   //////////////////////////////////////
 
+  destination      Destination? @relation(fields: [destinationId], references: [id])
+
   itineraryHotels  ItineraryHotel[]
+
+  packagesPrimary  Package[]    @relation("PackagePrimaryHotel")
+
+  gallery          Gallery[]
+  bookings         Booking[]
+
+  @@index([destinationId])
 }
 
 //////////////////////////////////////
@@ -333,6 +385,7 @@ model Gallery {
   destinationId Int?
   packageId     Int?
   itineraryId   Int?
+  hotelId       Int?
 
   status      Status   @default(ACTIVE)
   createdAt   DateTime @default(now())
@@ -343,8 +396,141 @@ model Gallery {
   destination Destination? @relation(fields: [destinationId], references: [id])
   package     Package?     @relation(fields: [packageId], references: [id])
   itinerary   Itinerary?   @relation(fields: [itineraryId], references: [id])
+  hotel       Hotel?       @relation(fields: [hotelId], references: [id])
 
   @@index([destinationId])
   @@index([packageId])
   @@index([itineraryId])
+  @@index([hotelId])
+}
+
+//////////////////////////////////////
+// USER & AUTH
+//////////////////////////////////////
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  phone     String?
+  password  String?
+  status    Status   @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings  Booking[]
+}
+
+//////////////////////////////////////
+// BOOKING
+//////////////////////////////////////
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model Booking {
+  id              Int           @id @default(autoincrement())
+
+  bookingNumber   String        @unique
+
+bookingType       BookingType @default(PACKAGE)
+
+  userId          Int
+
+  // Optional Relations
+  packageId       Int?
+  hotelId         Int?
+
+  // Hotel booking fields
+  checkInDate     DateTime?
+  checkOutDate    DateTime?
+  totalRooms      Int?
+
+  // Common fields
+  travelDate      DateTime?
+  totalGuests     Int
+  totalAmount     Float
+  paidAmount      Float         @default(0)
+  remainingAmount Float
+
+  bookingStatus   BookingStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+
+  specialRequest  String?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  //////////////////////////////////////
+  // RELATIONS
+  //////////////////////////////////////
+
+  user            User      @relation(fields: [userId], references: [id])
+
+  package         Package?  @relation(fields: [packageId], references: [id])
+
+  hotel           Hotel?    @relation(fields: [hotelId], references: [id])
+
+  guests          BookingGuest[]
+
+  payments        Payment[]
+
+  @@index([userId])
+
+  @@index([packageId])
+
+  @@index([hotelId])
+}
+
+model BookingGuest {
+  id             Int      @id @default(autoincrement())
+  bookingId      Int
+  firstName      String
+  lastName       String?
+  age            Int?
+  gender         Gender?
+  phone          String?
+  email          String?
+  passportNumber String?
+  nationality    String?
+  createdAt      DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
+}
+
+model Payment {
+  id             Int           @id @default(autoincrement())
+  bookingId      Int
+  transactionId  String?
+  paymentGateway String?
+  paymentMethod  String?
+  amount         Float
+  currency       String        @default("INR")
+  paymentStatus  PaymentStatus @default(PENDING)
+  paidAt         DateTime?
+  createdAt      DateTime      @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+
+  @@index([bookingId])
 }

@@ -7,14 +7,21 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { CreateHotelDto } from './dto/create-hotel.dto';
 import { UpdateHotelDto } from './dto/update-hotel.dto';
+import { BulkImportHotelDto } from './dto/bulk-import-hotel.dto';
 import { HotelsService } from './hotels.service';
 
 @Controller('hotels')
 export class HotelsController {
   constructor(private readonly hotelsService: HotelsService) {}
+
+  @Post('bulk')
+  bulkImport(@Body() dto: BulkImportHotelDto) {
+    return this.hotelsService.bulkImport(dto);
+  }
 
   @Post()
   create(@Body() dto: CreateHotelDto) {
@@ -22,8 +29,8 @@ export class HotelsController {
   }
 
   @Get()
-  findAll() {
-    return this.hotelsService.findAll();
+  findAll(@Query('destinationId') destinationId?: string) {
+    return this.hotelsService.findAll(destinationId ? Number(destinationId) : undefined);
   }
 
   @Get(':id')

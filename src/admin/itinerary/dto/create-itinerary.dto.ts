@@ -1,5 +1,6 @@
 ﻿import {
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -61,10 +62,33 @@ export class ActivityDto {
   endTime?: string;
 }
 
+export class HotelAssignDto {
+  @IsInt()
+  @Type(() => Number)
+  hotelId!: number;
+
+  @IsOptional()
+  @IsBoolean()
+  checkIn?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  checkOut?: boolean;
+
+  @IsOptional()
+  @IsString()
+  roomType?: string;
+}
+
 export class CreateItineraryDto {
   @IsInt()
   @Type(() => Number)
   packageId!: number;
+
+  @IsOptional()
+  @IsInt()
+  @Type(() => Number)
+  destinationId?: number;
 
   @IsInt()
   @Type(() => Number)
@@ -95,4 +119,10 @@ export class CreateItineraryDto {
   @ValidateNested({ each: true })
   @Type(() => ActivityDto)
   activities?: ActivityDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => HotelAssignDto)
+  hotels?: HotelAssignDto[];
 }

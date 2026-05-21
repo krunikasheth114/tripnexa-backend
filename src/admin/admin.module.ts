@@ -5,6 +5,7 @@ import { HotelsModule } from './hotels/hotels.module';
 import { ItineraryModule } from './itinerary/itinerary.module';
 import { ItineraryDetailsModule } from './itinerary-details/itinerary-details.module';
 import { GalleryModule } from './gallery/gallery.module';
+import { BookingsModule } from './bookings/bookings.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { GalleryModule } from './gallery/gallery.module';
     ItineraryModule,
     ItineraryDetailsModule,
     GalleryModule,
+    BookingsModule,
   ],
 })
 export class AdminModule {}
