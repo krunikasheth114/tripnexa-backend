@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { Status } from '../../../generated/prisma';
 
@@ -68,5 +68,26 @@ export class HotelsWebService {
       limit,
       hasMore: skip + data.length < total,
     };
+  }
+
+  async findOne(id: number) {
+    const hotel = await this.prisma.hotel.findFirst({
+      where: { id, status: Status.ACTIVE, deletedAt: null },
+      include: {
+        gallery: {
+          where: { deletedAt: null },
+          orderBy: { position: 'asc' },
+        },
+        destination: {
+          select: { id: true, name: true, slug: true },
+        },
+        rooms: {
+          where: { status: Status.ACTIVE },
+          orderBy: { name: 'asc' },
+        },
+      },
+    });
+    if (!hotel) throw new NotFoundException(`Hotel ${id} not found`);
+    return hotel;
   }
 }

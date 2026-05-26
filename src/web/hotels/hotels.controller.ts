@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Param, ParseIntPipe } from '@nestjs/common';
 import { HotelsWebService } from './hotels.service';
 
 @Controller('web/hotels')
@@ -22,5 +22,10 @@ export class HotelsWebController {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
     });
+  }
+
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.hotelsService.findOne(id);
   }
 }

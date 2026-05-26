@@ -1,6 +1,7 @@
-﻿import { IsInt, IsOptional, IsString, IsEnum, IsNumber, Min, Max } from 'class-validator';
+﻿import { IsInt, IsOptional, IsString, IsEnum, IsNumber, Min, Max, IsArray, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Status } from '../../../../generated/prisma';
+import { CreateRoomDto } from './create-room.dto';
 
 export class CreateHotelDto {
   @IsString()
@@ -28,6 +29,29 @@ export class CreateHotelDto {
   perNightPrice?: number;
 
   @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  minNights?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  maxRooms?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Type(() => Number)
+  maxGuests?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  availableMeals?: string[];
+
+  @IsOptional()
   @IsString()
   description?: string;
 
@@ -39,4 +63,10 @@ export class CreateHotelDto {
   @IsOptional()
   @IsEnum(Status)
   status?: Status;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateRoomDto)
+  rooms?: CreateRoomDto[];
 }

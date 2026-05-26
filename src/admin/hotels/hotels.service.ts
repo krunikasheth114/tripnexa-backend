@@ -10,12 +10,40 @@ import { BulkImportResult, BulkRowError } from '../shared/bulk-import.types';
 export class HotelsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  create(dto: CreateHotelDto) {
-    return this.prisma.hotel.create({ data: dto });
+  async create(dto: CreateHotelDto) {
+    const { rooms: roomsData, ...hotelData } = dto;
+
+    const hotel = await this.prisma.hotel.create({
+      data: hotelData as any,
+      include: {
+        gallery: { where: { deletedAt: null }, orderBy: { position: 'asc' as const } },
+        rooms: true,
+      },
+    });
+
+    // Create rooms if provided
+    if (roomsData && roomsData.length > 0) {
+      await Promise.all(
+        roomsData.map((roomData) =>
+          this.prisma.room.create({
+            data: {
+              ...roomData,
+              hotelId: hotel.id,
+            },
+          })
+        )
+      );
+
+      // Fetch updated hotel with rooms
+      return this.findOne(hotel.id);
+    }
+
+    return hotel;
   }
 
-  private readonly galleryInclude = {
+  private readonly hotelInclude = {
     gallery: { where: { deletedAt: null }, orderBy: { position: 'asc' as const } },
+    rooms: { where: { status: { not: Status.DELETED } }, orderBy: { name: 'asc' as const } },
   };
 
   findAll(destinationId?: number) {
@@ -25,14 +53,14 @@ export class HotelsService {
         ...(destinationId ? { destinationId } : {}),
       },
       orderBy: { name: 'asc' },
-      include: this.galleryInclude,
+      include: this.hotelInclude,
     });
   }
 
   async findOne(id: number) {
     const hotel = await this.prisma.hotel.findFirst({
       where: { id, status: { not: Status.DELETED } },
-      include: this.galleryInclude,
+      include: this.hotelInclude,
     });
     if (!hotel) throw new NotFoundException(`Hotel with id ${id} not found`);
     return hotel;
@@ -40,7 +68,9 @@ export class HotelsService {
 
   async update(id: number, dto: UpdateHotelDto) {
     await this.findOne(id);
-    return this.prisma.hotel.update({ where: { id }, data: dto });
+    // Remove rooms from dto as they can't be updated via hotel update
+    const { rooms: _rooms, ...updateData } = dto as any;
+    return this.prisma.hotel.update({ where: { id }, data: updateData });
   }
 
   async remove(id: number) {
@@ -108,11 +138,18 @@ export class HotelsService {
           }
         }
 
-        // Strip destinationName (not a DB column) before inserting
-        const { destinationName: _dn, ...hotelData } = row;
-        await this.prisma.hotel.create({
-          data: { ...hotelData, ...(destinationId ? { destinationId } : {}) },
-        });
+        // Extract only valid hotel fields
+        const { destinationName: _dn, destinationId: _did, ...baseData } = row as any;
+        const hotelData = {
+          name: baseData.name,
+          city: baseData.city,
+          address: baseData.address,
+          starRating: baseData.starRating,
+          description: baseData.description,
+          ...(destinationId ? { destinationId } : {}),
+        };
+        await this.prisma.hotel.create({ data: hotelData });
+
         imported++;
       } catch (err: unknown) {
         failed++;

@@ -2,10 +2,12 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { StripeService } from './stripe.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CreateHotelBookingDto } from './dto/create-hotel-booking.dto';
 import { BookingStatus, PaymentStatus, Status } from '../../../generated/prisma';
 
 @Injectable()
@@ -360,5 +362,184 @@ export class BookingService {
         payments: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
     });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // CREATE HOTEL BOOKING
+  // ─────────────────────────────────────────────────────────────
+  async createHotelBooking(dto: CreateHotelBookingDto, userId: number) {
+    // 1. Validate hotel
+    const hotel = await this.prisma.hotel.findFirst({
+      where: { id: dto.hotelId, status: Status.ACTIVE, deletedAt: null },
+    });
+    if (!hotel) throw new NotFoundException('Hotel not found or inactive');
+    if (!hotel.perNightPrice)
+      throw new BadRequestException('Hotel pricing not configured');
+
+    // 2. Calculate nights
+    const checkIn = new Date(dto.checkInDate);
+    const checkOut = new Date(dto.checkOutDate);
+    const nights = Math.ceil(
+      (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24),
+    );
+    if (nights < 1)
+      throw new BadRequestException('Check-out must be after check-in');
+
+    // 3. Calculate total
+    const roomCost = hotel.perNightPrice * dto.totalRooms * nights;
+    const MEAL_PRICES: Record<string, number> = {
+      BREAKFAST: 350,
+      LUNCH: 500,
+      DINNER: 600,
+      HALF_BOARD: 900,
+      FULL_BOARD: 1400,
+    };
+    const mealCostPerPersonPerNight = dto.meals.reduce(
+      (sum, m) => sum + (MEAL_PRICES[m] ?? 0),
+      0,
+    );
+    const mealCost = mealCostPerPersonPerNight * dto.totalGuests * nights;
+    const gst = Math.round(roomCost * 0.12 + mealCost * 0.05);
+    const serviceFee = 299;
+    const totalAmount = roomCost + mealCost + gst + serviceFee;
+
+    // 4. Check for existing pending hotel booking
+    const existingPending = await this.prisma.booking.findFirst({
+      where: {
+        userId,
+        hotelId: dto.hotelId,
+        bookingStatus: BookingStatus.PENDING,
+        paymentStatus: { in: [PaymentStatus.PENDING, PaymentStatus.FAILED] },
+      },
+      include: { payments: { orderBy: { createdAt: 'desc' }, take: 1 } },
+    });
+
+    if (existingPending) {
+      this.logger.warn(
+        `Resuming existing PENDING hotel booking | bookingNumber=${existingPending.bookingNumber} | userId=${userId}`,
+      );
+
+      if (existingPending.paymentStatus === PaymentStatus.FAILED) {
+        const newIntent = await this.stripeService.createPaymentIntent(
+          existingPending.totalAmount,
+          existingPending.bookingNumber + '-retry',
+          {
+            bookingId: String(existingPending.id),
+            bookingNumber: existingPending.bookingNumber,
+            userId: String(userId),
+            hotelId: String(dto.hotelId),
+          },
+        );
+
+        await this.prisma.payment.create({
+          data: {
+            bookingId: existingPending.id,
+            transactionId: newIntent.id,
+            paymentGateway: 'STRIPE',
+            paymentMethod: 'CARD',
+            amount: existingPending.totalAmount,
+            currency: 'INR',
+            paymentStatus: PaymentStatus.PENDING,
+          },
+        });
+
+        await this.prisma.booking.update({
+          where: { id: existingPending.id },
+          data: { paymentStatus: PaymentStatus.PENDING },
+        });
+
+        return {
+          bookingNumber: existingPending.bookingNumber,
+          bookingId: existingPending.id,
+          totalAmount: existingPending.totalAmount,
+          clientSecret: newIntent.client_secret,
+        };
+      }
+
+      return {
+        bookingNumber: existingPending.bookingNumber,
+        bookingId: existingPending.id,
+        totalAmount: existingPending.totalAmount,
+        clientSecret: null,
+      };
+    }
+
+    // 5. Generate booking number
+    const bookingNumber = `TN-H-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+    this.logger.log(
+      `Creating hotel booking | bookingNumber=${bookingNumber} | userId=${userId} | hotelId=${dto.hotelId} | amount=₹${totalAmount}`,
+    );
+
+    // 6. Create booking + guests
+    const booking = await this.prisma.$transaction(async (tx) => {
+      return tx.booking.create({
+        data: {
+          bookingNumber,
+          bookingType: 'HOTEL',
+          userId,
+          hotelId: dto.hotelId,
+          checkInDate: checkIn,
+          checkOutDate: checkOut,
+          totalNights: nights,
+          totalRooms: dto.totalRooms,
+          meals: dto.meals,
+          totalGuests: dto.totalGuests,
+          totalAmount,
+          paidAmount: 0,
+          remainingAmount: totalAmount,
+          bookingStatus: BookingStatus.PENDING,
+          paymentStatus: PaymentStatus.PENDING,
+          specialRequest: dto.specialRequest,
+          guests: {
+            create: dto.guests.map((g) => ({
+              firstName: g.firstName,
+              lastName: g.lastName,
+              age: g.age,
+              gender: g.gender as any,
+              phone: g.phone,
+              email: g.email,
+              nationality: g.nationality,
+            })),
+          },
+        },
+        include: { guests: true },
+      });
+    });
+
+    // 7. Create Stripe PaymentIntent
+    const paymentIntent = await this.stripeService.createPaymentIntent(
+      totalAmount,
+      bookingNumber,
+      {
+        bookingId: String(booking.id),
+        bookingNumber,
+        userId: String(userId),
+        hotelId: String(dto.hotelId),
+      },
+    );
+
+    await this.prisma.payment.create({
+      data: {
+        bookingId: booking.id,
+        transactionId: paymentIntent.id,
+        paymentGateway: 'STRIPE',
+        paymentMethod: 'CARD',
+        amount: totalAmount,
+        currency: 'INR',
+        paymentStatus: PaymentStatus.PENDING,
+      },
+    });
+
+    this.logger.log(
+      `PaymentIntent created for hotel booking | piId=${paymentIntent.id} | bookingNumber=${bookingNumber}`,
+    );
+
+    return {
+      bookingNumber,
+      bookingId: booking.id,
+      totalAmount,
+      clientSecret: paymentIntent.client_secret,
+    };
   }
 }

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CreateHotelBookingDto } from './dto/create-hotel-booking.dto';
 import { AuthGuard } from './guards/auth.guard';
 
 @Controller('web/booking')
@@ -51,5 +52,18 @@ export class BookingController {
     const userId: number = req.user?.sub;
     if (!userId) throw new UnauthorizedException('User not authenticated');
     return this.bookingService.getByBookingNumber(bookingNumber, userId);
+  }
+
+  /**
+   * POST /web/booking/hotel
+   * Creates a hotel booking and returns a Stripe clientSecret for payment.
+   * Requires JWT auth.
+   */
+  @Post('hotel')
+  @UseGuards(AuthGuard)
+  createHotel(@Body() dto: CreateHotelBookingDto, @Req() req: any) {
+    const userId: number = req.user?.sub;
+    if (!userId) throw new UnauthorizedException('User not authenticated');
+    return this.bookingService.createHotelBooking(dto, userId);
   }
 }
