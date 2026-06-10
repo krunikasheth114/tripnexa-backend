@@ -10,9 +10,7 @@ export class StripeService {
   private readonly logger = new Logger(StripeService.name);
 
   constructor() {
-    this.client = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
-      apiVersion: '2026-04-22.dahlia',
-    });
+    this.client =  new Stripe(process.env.STRIPE_SECRET_KEY!);
   }
 
   /**
