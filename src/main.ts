@@ -11,12 +11,11 @@ async function bootstrap() {
     });
 
     app.enableCors({
-        origin: [`http://localhost:3000`, `http://localhost:5173`, `http://localhost:5173/`],
-        methods: `GET,HEAD,PUT,PATCH,POST,DELETE`,
+        origin: true,
         credentials: true,
     });
 
     setupApp(app);
-    await app.listen(5000);
+    await app.listen(process.env.PORT || 5000);
 }
 bootstrap();
